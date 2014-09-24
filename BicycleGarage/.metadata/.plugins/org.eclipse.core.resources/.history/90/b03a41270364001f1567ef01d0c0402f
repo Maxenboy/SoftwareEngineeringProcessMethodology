@@ -1,0 +1,667 @@
+package bicycleGarage;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.List;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
+import java.util.Calendar;
+
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+
+public class ManagerGUI {
+        private Database database;
+        private User[] users;
+        private UserList userList;
+        private BikeList bikeList;
+        private DefaultListModel bikeListModel;
+        private DefaultListModel userListModel;
+        private BicycleGarageManager garage;
+        private EditUserButton editUserButton;
+        private RemoveUserButton removeUserButton;
+        private AddBicycleButton addBicycleButton;
+        private RemoveBicycleButton removeBicycleButton;
+
+        private String months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+        public ManagerGUI(Database database, BicycleGarageManager garage) {
+                this.database = database;
+                this.garage = garage;
+                MainWindow frame = new MainWindow("Bicycle Garage");
+                frame.setResizable(false);
+                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                JPanel panel = new JPanel();
+                frame.add(panel, BorderLayout.WEST);
+
+                JPanel labelPanel = new JPanel(new GridLayout(1, 10));
+                frame.add(labelPanel, BorderLayout.NORTH);
+                JLabel userLabel = new JLabel("  User ID       User name");
+                labelPanel.add(userLabel, BorderLayout.WEST);
+                JLabel bikeLabel = new JLabel("Bicycle list");
+                labelPanel.add(bikeLabel, BorderLayout.WEST);
+
+                userListModel = new DefaultListModel();
+                userList = new UserList(userListModel);
+                userList.update();
+
+                JScrollPane userListPane = new JScrollPane(userList);
+                panel.add(userListPane, BorderLayout.WEST);
+
+                bikeListModel = new DefaultListModel();
+                bikeList = new BikeList(bikeListModel);
+
+                JScrollPane bikeListPane = new JScrollPane(bikeList);
+                panel.add(bikeListPane, BorderLayout.EAST);
+
+                JPanel buttonPanel = new JPanel(); // Buttons
+                buttonPanel.setLayout(new GridLayout(0, 5));
+                frame.add(buttonPanel, BorderLayout.SOUTH);
+
+                buttonPanel.add(new addUserButton());
+                removeUserButton = new RemoveUserButton();
+                removeUserButton.setEnabled(false);
+                buttonPanel.add(removeUserButton);
+                editUserButton = new EditUserButton();
+                editUserButton.setEnabled(false);
+                buttonPanel.add(editUserButton);
+                addBicycleButton = new AddBicycleButton();
+                addBicycleButton.setEnabled(false);
+                buttonPanel.add(addBicycleButton);
+                removeBicycleButton = new RemoveBicycleButton();
+                removeBicycleButton.setEnabled(false);
+                buttonPanel.add(removeBicycleButton);
+
+                JMenuBar menubar = new JMenuBar(); // menu
+                frame.setJMenuBar(menubar);
+                JMenu statMenu = new JMenu("Statistics");
+                statMenu.add(new statItem());
+                statMenu.add(new insideItem());
+                menubar.add(statMenu);
+                JMenu adminMenu = new JMenu("Administration");
+                adminMenu.add(new unlockItem());
+                adminMenu.add(new settingItem());
+                menubar.add(adminMenu);
+
+                frame.pack();
+
+                // Get the size of the screen
+                Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+
+                // Put the window in center
+                int w = frame.getSize().width;
+                int h = frame.getSize().height;
+                int x = (dim.width - w) / 2;
+                int y = (dim.height - h) / 2;
+
+                // Move the window
+                frame.setLocation(x, y);
+
+                frame.setVisible(true);
+
+        }
+
+        public class MainWindow extends JFrame implements WindowListener {
+
+                public MainWindow(String string) {
+                        super(string);
+                        addWindowListener(this);
+                }
+
+                @Override
+                public void windowActivated(WindowEvent e) {
+                        if (userList.getSelectedIndex() != -1) {
+                                User user = users[userList.getSelectedIndex()];
+                                Bicycle[] bikes = database.bicycleList("" + user.getID());
+                                bikeList.update(bikes);
+                        }
+                }
+
+                @Override
+                public void windowClosed(WindowEvent arg0) {
+                        // TODO Auto-generated method stub
+
+                }
+
+                @Override
+                public void windowClosing(WindowEvent arg0) {
+                        // TODO Auto-generated method stub
+
+                }
+
+                @Override
+                public void windowDeactivated(WindowEvent e) {
+                        if (userList.getSelectedIndex() != -1) {
+                                User user = users[userList.getSelectedIndex()];
+                                Bicycle[] bikes = database.bicycleList("" + user.getID());
+                                bikeList.update(bikes);
+                        }
+                }
+
+                @Override
+                public void windowDeiconified(WindowEvent arg0) {
+                        // TODO Auto-generated method stub
+
+                }
+
+                @Override
+                public void windowIconified(WindowEvent arg0) {
+                        // TODO Auto-generated method stub
+
+                }
+
+                @Override
+                public void windowOpened(WindowEvent arg0) {
+                        // TODO Auto-generated method stub
+
+                }
+        }
+
+        public class UserList extends JList implements ListSelectionListener {
+                private DefaultListModel listModel;
+
+                public UserList(DefaultListModel listModel) {
+                        super(listModel);
+                        this.listModel = listModel;
+                        setVisibleRowCount(20);
+                        addListSelectionListener(this);
+                        setFixedCellWidth(300);
+                        setFixedCellHeight(20);
+                }
+
+                public void update() {
+                        listModel.removeAllElements();
+                        users = database.userList();
+                        for (int i = 0; i < users.length; i++) {
+                                String name = users[i].getName();
+                                int ID = users[i].getID();
+                                if (ID < 10) {
+                                        listModel.addElement("00" + ID + "              " + name);
+                                } else if (ID < 100) {
+                                        listModel.addElement("0" + ID + "              " + name);
+                                } else {
+                                        listModel.addElement(ID + "              " + name);
+                                }
+                        }
+                }
+
+                public void valueChanged(ListSelectionEvent e) {
+                        if (e.getValueIsAdjusting() == false) {
+                                if (getSelectedIndex() == -1) {
+                                        editUserButton.setEnabled(false);
+                                        removeUserButton.setEnabled(false);
+                                        addBicycleButton.setEnabled(false);
+                                } else {
+                                        editUserButton.setEnabled(true);
+                                        removeUserButton.setEnabled(true);
+                                        addBicycleButton.setEnabled(true);
+                                }
+                                if (getSelectedIndex() != -1) {
+                                        User user = users[getSelectedIndex()];
+                                        Bicycle[] bikes = database.bicycleList("" + user.getID());
+                                        bikeList.update(bikes);
+                                }
+                        }
+                }
+        }
+
+        public class BikeList extends JList implements ListSelectionListener {
+                private DefaultListModel listModel;
+
+                public BikeList(DefaultListModel listModel) {
+                        super(listModel);
+                        this.listModel = listModel;
+                        setVisibleRowCount(20);
+                        addListSelectionListener(this);
+                        setFixedCellWidth(300);
+                        setFixedCellHeight(20);
+                }
+
+                public void removeAllElements() {
+                        listModel.removeAllElements();
+                }
+
+                public void update(Bicycle[] bikes) {
+                        listModel.removeAllElements();
+                        for (int i = 0; i < bikes.length; i++) {
+                                if (bikes[i] != null) {
+                                        String inside = "";
+                                        StringBuffer date = new StringBuffer();
+                                        if (bikes[i].isInside()) {
+                                                inside = "In garage since:";
+                                                date.append(bikes[i].getAdmissionDate().get(
+                                                                Calendar.DATE));
+                                                date.append(" "
+                                                                + months[bikes[i].getAdmissionDate().get(
+                                                                                Calendar.MONTH)] + " ");
+                                                date.append(bikes[i].getAdmissionDate().get(
+                                                                Calendar.YEAR));
+                                        } else {
+                                                inside = "Not in garage";
+                                        }
+                                        if (bikes[i].isInside()) {
+                                                listModel.addElement(bikes[i].getID() + "          "
+                                                                + inside + "  " + date);
+                                        } else {
+                                                listModel.addElement(bikes[i].getID() + "          "
+                                                                + inside);
+                                        }
+                                }
+                        }
+                }
+
+                public void valueChanged(ListSelectionEvent e) {
+                        if (e.getValueIsAdjusting() == false) {
+                                if (getSelectedIndex() == -1) {
+                                        removeBicycleButton.setEnabled(false);
+                                } else {
+                                        removeBicycleButton.setEnabled(true);
+                                }
+                        }
+                }
+        }
+
+        private class statItem extends JMenuItem implements ActionListener {
+                public statItem() {
+                        super("General statistics");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        User[] usrs = (User[]) database.userList();
+                        JOptionPane.showMessageDialog(null, "Total number of users: "
+                                        + usrs.length + "\nTotal number of bicycles: "
+                                        + database.bicycleList().length
+                                        + "\nBicycles currently in the garage: "
+                                        + database.getNbrBikesInside()
+                                        + "\nMaximum number of bicycles in garage: "
+                                        + database.getMaxNbrBikes()
+                                        + "\nMaximum number of bicycles per user: "
+                                        + database.getMaxNbrBikesPerUser(), "General statistics",
+                                        JOptionPane.INFORMATION_MESSAGE);
+                }
+        }
+
+        private class insideItem extends JMenuItem implements ActionListener {
+                public insideItem() {
+                        super("List of bicycles inside the garage");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        Bicycle[] bikes = database.bicyclesInsideList();
+                        DefaultListModel listModel = new DefaultListModel();
+                        BkList bkList = new BkList(listModel);
+                        if (bikes != null) {
+                                listModel.removeAllElements();
+                                String months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+                                for (int i = 0; i < bikes.length; i++) {
+                                        if (bikes[i] != null) {
+                                                String inside = "";
+                                                StringBuffer date = new StringBuffer();
+                                                inside = "Inside the garage since:";
+                                                date.append(bikes[i].getAdmissionDate().get(
+                                                                Calendar.DATE));
+                                                date.append(" "
+                                                                + months[bikes[i].getAdmissionDate().get(
+                                                                                Calendar.MONTH)] + " ");
+                                                date.append(bikes[i].getAdmissionDate().get(
+                                                                Calendar.YEAR));
+
+                                                listModel.addElement(bikes[i].getID() + "          "
+                                                                + inside + "  " + date);
+
+                                        }
+                                }
+                        }
+                        new quickList(bkList);
+                }
+
+                private class BkList extends JList {
+                        private DefaultListModel listModel;
+
+                        public BkList(DefaultListModel listModel) {
+                                super(listModel);
+                                this.listModel = listModel;
+                                setVisibleRowCount(10);
+                                setFixedCellWidth(400);
+                                setFixedCellHeight(15);
+                        }
+                }
+
+        }
+
+        private class quickList extends JFrame {
+                public quickList(JList bklist) {
+                        super("List of bicycles inside the garage");
+                        this.setResizable(false);
+                        JPanel panel = new JPanel();
+                        this.add(panel);
+                        JScrollPane listPane = new JScrollPane(bklist);
+                        panel.add(listPane);
+                        this.pack();
+                        Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+                        int w = this.getSize().width;
+                        int h = this.getSize().height;
+                        int x = (dim.width - w) / 2;
+                        int y = (dim.height - h) / 2;
+                        this.setLocation(x, y);
+                        this.setVisible(true);
+                }
+        }
+
+        private class unlockItem extends JMenuItem implements ActionListener {
+                public unlockItem() {
+                        super("Unlock doors");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        int entry = 0;
+                        int exit = 0;
+                        String entryt = JOptionPane
+                                        .showInputDialog("Duration (in seconds) to unlock entry door");
+                        try {
+                                entry = Integer.parseInt(entryt);
+                        } catch (Exception e1) {
+                                if (entryt != null) {
+                                        JOptionPane.showMessageDialog(null, "Wrong input.",
+                                                        "Error", JOptionPane.ERROR_MESSAGE);
+                                        entryt = null;
+                                }
+                        }
+                        if (entry < 10 && entry != 0) {
+                                JOptionPane
+                                                .showMessageDialog(
+                                                                null,
+                                                                "The doors can only be opened for ten seconds or more.",
+                                                                "Error", JOptionPane.ERROR_MESSAGE);
+                                entryt = null;
+                        }
+                        if (entryt != null) {
+                                String exitt = JOptionPane
+                                                .showInputDialog("Duration (in seconds) to unlock exit door");
+                                try {
+                                        exit = Integer.parseInt(exitt);
+                                } catch (Exception e1) {
+                                        if (exitt != null) {
+                                                JOptionPane.showMessageDialog(null, "Wrong input.",
+                                                                "Error", JOptionPane.ERROR_MESSAGE);
+                                        }
+                                        exitt = null;
+                                }
+                                if (exitt != null && exit < 10 && exit != 0) {
+                                        JOptionPane
+                                                        .showMessageDialog(
+                                                                        null,
+                                                                        "The doors can only be opened for ten seconds or more.",
+                                                                        "Error", JOptionPane.ERROR_MESSAGE);
+                                } else if (exitt != null) {
+                                        garage.unlockEntryDoor(entry);
+                                        garage.unlockExitDoor(exit);
+                                }
+                        }
+                }
+        }
+
+        private class settingItem extends JMenuItem implements ActionListener {
+                public settingItem() {
+                        super("Global settings");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        int global = -1, user = -1;
+                        String globalt = JOptionPane
+                                        .showInputDialog("Maximum number of bicycles allowed the in garage: ");
+                        try {
+                                while (!containsOnlyNumbers(globalt) && globalt != null) {
+                                        globalt = JOptionPane
+                                                        .showInputDialog("Wrong format. Re-Enter maximum number of bicycles allowed the in garage: ");
+                                }
+                                global = Integer.parseInt(globalt);
+                        } catch (Exception ex) {
+                                global = -1;
+                        }
+                        if (global < database.getNbrBikesInside() && global > -1) {
+                                int choice = JOptionPane
+                                                .showConfirmDialog(
+                                                                null,
+                                                                "There are "
+                                                                                + database.getNbrBikesInside()
+                                                                                + " bicycles inside the garage. Are you sure that you want to change the maximum number of bicycles allowed in the garage to "
+                                                                                + global + "?", "Are you sure?",
+                                                                JOptionPane.YES_NO_OPTION);
+                                if (choice != JOptionPane.YES_OPTION) {
+                                        global = -1;
+                                }
+                        }
+                        if (global > -1) {
+                                database.setMaxNbrBikes(global);
+                        }
+                        if (globalt != null) {
+                                String usert = JOptionPane
+                                                .showInputDialog("Maximum number of bicycles allowed per user: ");
+                                try {
+                                        while (!containsOnlyNumbers(usert) && usert != null) {
+                                                usert = JOptionPane
+                                                                .showInputDialog("Wrong format. Re-Enter maximum number of bicycles allowed per user: ");
+                                        }
+                                        user = Integer.parseInt(usert);
+                                } catch (Exception ex) {
+                                        global = -1;
+                                }
+                                if (user > -1) {
+                                        database.setMaxNbrBikesPerUser(user);
+                                }
+                        }
+                }
+        }
+
+        public class addUserButton extends JButton implements ActionListener {
+                public addUserButton() {
+                        super("Add user");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        boolean success = false;
+                        String PIN = "";
+                        String name = JOptionPane.showInputDialog("Name: ");
+                        if (name != null) {
+                                PIN = JOptionPane
+                                                .showInputDialog("Enter a four digit PIN code: ");
+                                try {
+                                        while (PIN.length() != 4 || !containsOnlyNumbers(PIN)) {
+                                                PIN = JOptionPane
+                                                                .showInputDialog("Wrong format. Re-Enter PIN code: ");
+                                        }
+                                } catch (Exception ex) {
+                                        success = false;
+                                }
+                                if (PIN != null) {
+                                        success = true;
+                                }
+                        }
+                        if (success) {
+                                if (database.addUser(name, PIN) != -1) {
+                                        userList.update();
+                                } else {
+                                        JOptionPane.showMessageDialog(null,
+                                                        "Maximum number of users reached.", "Error",
+                                                        JOptionPane.ERROR_MESSAGE);
+                                }
+                        }
+                }
+        }
+
+        public class RemoveUserButton extends JButton implements ActionListener {
+                public RemoveUserButton() {
+                        super("Remove user");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        User user = users[userList.getSelectedIndex()];
+                        String IDstr = "";
+                        if (user.getID() < 10) {
+                                IDstr = "00" + user.getID();
+                        } else if (user.getID() < 100) {
+                                IDstr = "0" + user.getID();
+                        }
+                        int choice = JOptionPane.showConfirmDialog(null,
+                                        "Are you sure that you want to remove the user with the name "
+                                                        + user.getName() + " and ID " + IDstr + "?",
+                                        "Are you sure?", JOptionPane.YES_NO_OPTION);
+                        if (choice == JOptionPane.YES_OPTION) {
+                                database.removeUser("" + user.getID());
+                        }
+                        userList.update();
+                        bikeList.removeAllElements();
+                }
+        }
+
+        public class EditUserButton extends JButton implements ActionListener {
+                public EditUserButton() {
+                        super("Edit user");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        User user = users[userList.getSelectedIndex()];
+                        boolean success = false;
+                        String PIN = "";
+                        String name = JOptionPane.showInputDialog("Old name is "
+                                        + user.getName() + "\nNew name: ");
+                        if (name != null) {
+                                PIN = JOptionPane.showInputDialog("Old PIN is " + user.getPIN()
+                                                + "\nEnter a four digit PIN code: ");
+                                try {
+                                        while (PIN.length() != 4 || !containsOnlyNumbers(PIN)) {
+                                                PIN = JOptionPane
+                                                                .showInputDialog("Wrong format. Re-Enter PIN code: ");
+                                        }
+                                } catch (Exception ex) {
+                                        success = false;
+                                }
+                                if (PIN != null) {
+                                        success = true;
+                                }
+                        }
+                        if (success) {
+                                user.setName(name);
+                                user.setPIN(PIN);
+                                userList.update();
+                        }
+                }
+        }
+
+        public class AddBicycleButton extends JButton implements ActionListener {
+                public AddBicycleButton() {
+                        super("Add bicycle");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        User user = users[userList.getSelectedIndex()];
+                        int choice = JOptionPane
+                                        .showConfirmDialog(
+                                                        null,
+                                                        "Are you sure that you want to add a bicycle to this user?",
+                                                        "Are you sure?", JOptionPane.YES_NO_OPTION);
+                        if (choice == JOptionPane.YES_OPTION) {
+                                int success = database.addBicycle("" + user.getID());
+                                if (success == database.SUCCESS) {
+                                        user = users[userList.getSelectedIndex()];
+                                        Bicycle[] bikes = database.bicycleList("" + user.getID());
+                                        bikeList.update(bikes);
+                                } else if (success == database.GLOBAL_BIKE_LIMIT_REACHED) {
+                                        JOptionPane
+                                                        .showMessageDialog(
+                                                                        null,
+                                                                        "Maximum number of bicycles allowed in the garage is reached.",
+                                                                        "Error", JOptionPane.ERROR_MESSAGE);
+                                } else if (success == database.USER_BIKE_LIMIT_REACHED) {
+                                        JOptionPane
+                                                        .showMessageDialog(
+                                                                        null,
+                                                                        "Maximum number of bicycles for this user is reached.",
+                                                                        "Error", JOptionPane.ERROR_MESSAGE);
+                                }
+                        }
+                }
+        }
+
+        public class RemoveBicycleButton extends JButton implements ActionListener {
+                public RemoveBicycleButton() {
+                        super("Remove bicycle");
+                        addActionListener(this);
+                }
+
+                public void actionPerformed(ActionEvent e) {
+                        User user = users[userList.getSelectedIndex()];
+                        Bicycle[] bikes = database.bicycleList("" + user.getID());
+                        int selection = bikeList.getSelectedIndex();
+                        String inside = "";
+                        StringBuffer date = new StringBuffer();
+                        if (bikes[selection].isInside()) {
+                                inside = "In garage since: ";
+                                date.append(bikes[selection].getAdmissionDate().get(
+                                                Calendar.DATE));
+                                date.append(" "
+                                                + months[bikes[selection].getAdmissionDate().get(
+                                                                Calendar.MONTH)] + " ");
+                                date.append(bikes[selection].getAdmissionDate().get(
+                                                Calendar.YEAR));
+                                inside = inside + date.toString();
+                        } else {
+                                inside = "Not in garage";
+                        }
+                        int choice = JOptionPane.showConfirmDialog(null,
+                                        "Are you sure that you want to remove the following bicycle:\n"
+                                                        + "Bar code: " + bikes[selection].getID() + "\n"
+                                                        + "Owner: "
+                                                        + users[userList.getSelectedIndex()].getName()
+                                                        + "\n" + "State: " + inside, "Are you sure?",
+                                        JOptionPane.YES_NO_OPTION);
+                        if (choice == JOptionPane.YES_OPTION) {
+                                database.removeBicycle(bikes[selection].getID());
+                        }
+                        user = users[userList.getSelectedIndex()];
+                        bikes = database.bicycleList("" + user.getID());
+                        bikeList.update(bikes);
+                }
+        }
+
+        /**
+         * This method checks if a String contains only numbers
+         */
+        public boolean containsOnlyNumbers(String str) {
+                if (str == null || str.length() == 0) {
+                        return false;
+                }
+                for (int i = 0; i < str.length(); i++) {
+                        if (!Character.isDigit(str.charAt(i))) {
+                                return false;
+                        }
+                }
+                return true;
+        }
+}
